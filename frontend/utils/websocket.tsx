@@ -41,4 +41,4 @@ class WebSocketService {
   }
 }
 
-export const webSocketService = new WebSocketService('ws://localhost:8000/ws');
+export const webSocketService = new WebSocketService('https://real-time-chat-application-1-weuf.onrender.com/ws');
