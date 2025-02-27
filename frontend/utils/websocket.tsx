@@ -1,4 +1,7 @@
 import { WebSocketEvent } from '../types';
+import { v4 as uuidv4 } from 'uuid';
+
+
 
 class WebSocketService {
   private socket: WebSocket | null = null;
@@ -9,7 +12,8 @@ class WebSocketService {
   }
 
   connect(onMessage: (event: WebSocketEvent) => void, onStatusChange: (status: boolean) => void) {
-    this.socket = new WebSocket(this.url);
+    const clientId = uuidv4(); // You'll need to import uuid
+    this.socket = new WebSocket(`${this.url}/${clientId}`);
 
     this.socket.onopen = () => {
       onStatusChange(true);
@@ -25,12 +29,11 @@ class WebSocketService {
     };
   }
 
-  sendMessage(message: string) {
+  sendMessage(message: string, username: string) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ type: 'message', payload: message }));
+      this.socket.send(JSON.stringify({ type: 'message', payload: { text: message, sender: username } }));
     }
   }
-
   disconnect() {
     if (this.socket) {
       this.socket.close();
