@@ -1,42 +1,41 @@
-import asyncio
-import json
-import uuid
-import time
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict
+import time
+from typing import List
+import json
+import uuid
 
 app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "https://real-time-chat-application-9zdt.onrender.com"],  # Allows all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
+        self.active_connections: List[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket, client_id: str):
+    async def connect(self, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections[client_id] = websocket
+        self.active_connections.append(websocket)
 
-    def disconnect(self, client_id: str):
-        del self.active_connections[client_id]
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str):
-        for connection in self.active_connections.values():
+        for connection in self.active_connections:
             await connection.send_text(message)
 
 manager = ConnectionManager()
 
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await manager.connect(websocket, client_id)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
     try:
         while True:
             data = await websocket.receive_text()
@@ -46,11 +45,15 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     "type": "message",
                     "payload": {
                         "id": str(uuid.uuid4()),
-                        "text": message["payload"]["text"],
-                        "sender": message["payload"]["sender"],
+                        "text": message["payload"],
+                        "sender": "User",  # You can implement user identification here
                         "timestamp": int(time.time() * 1000)
                     }
                 }
                 await manager.broadcast(json.dumps(response))
     except WebSocketDisconnect:
-        manager.disconnect(client_id)
+        manager.disconnect(websocket)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
